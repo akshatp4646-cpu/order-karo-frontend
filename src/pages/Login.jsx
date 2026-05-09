@@ -1,26 +1,61 @@
-import {useState} from 'react'
+import { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { FaRegEye } from "react-icons/fa";
 import { FaRegEyeSlash } from "react-icons/fa";
-import { validRoles } from '../constants/constant';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { validRoles,serverUrl } from "../constants/constant";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import {signInWithPopup} from "firebase/auth";
+import {provider,auth} from "../../firebase";
+import { useDispatch } from "react-redux";
+import { setUserData } from "../redux/userSlice";
+
 const Login = () => {
   const [role, setRole] = useState("user");
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
+  const navigate = useNavigate()
+  const dispatch = useDispatch();
 
   const handleLoginForm = async (e) => {
     e.preventDefault();
-    try {
-      
+
+     try {
+      const {data} = await axios.post(
+        `${serverUrl}/api/auth/login`,
+        {
+          email,          
+          password,
+          role,
+        },
+        { withCredentials: true }
+      );
+          
+      dispatch(setUserData(data?.user));
+      navigate("/",{replace:true});
+
     } catch (error) {
-      
+      console.log(error);
+    }
+  };
+
+   const handleGoogleAuthLogin = async () => {
+    try {                   
+          const result = await signInWithPopup(auth,provider);
+          const {data} = await axios.post(`${serverUrl}/api/auth/google-auth-login`,{           
+            email:result?.user?.email,            
+            role
+          },{withCredentials: true});
+          dispatch(setUserData(data?.user));
+          navigate("/",{replace:true});
+    } catch (error) {
+        console.log("Google Login Error:",error?.response?.data?.message);
+        console.log("Full Error Data:", error.response?.data);
     }
   }
-  return  (
+
+  return (
     <div className="min-h-screen flex items-center justify-center bg-orange-50 px-4 py-6">
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
         <h1 className="text-3xl font-bold text-center text-orange-600 mb-2">
@@ -30,11 +65,9 @@ const Login = () => {
           Login Here for Fresh Food Delievery
         </h2>
 
-        <form className="space-y-5" onSubmit={handleLoginForm}>
-    
-
+        <form className="space-y-1" onSubmit={handleLoginForm}>
           {/* Email */}
-          <div>
+          <div className="mb-3">
             <label
               htmlFor="email"
               className="block text-sm font-semibold text-gray-800 mb-2"
@@ -81,6 +114,12 @@ const Login = () => {
             </div>
           </div>
 
+          <div className="text-right">
+            <Link to="/forget-password" className="text-orange-600 font-bold">
+              Forget Password
+            </Link>
+          </div>
+
           {/* Role Selection */}
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-3">
@@ -104,6 +143,7 @@ const Login = () => {
                     onClick={() => setRole(rol)}
                   >
                     {(rol === "user" && "👤") ||
+                      (rol === "owner" && "🏡") ||
                       (rol === "admin" && "🔐") ||
                       (rol === "rider" && "🚴")}{" "}
                     {rol}
@@ -116,15 +156,16 @@ const Login = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full mt-2 bg-orange-600 text-white font-semibold py-3 rounded-lg hover:bg-orange-700 hover:cursor-pointer transition-all duration-300"
+            className="w-full mt-3 bg-orange-600 text-white font-semibold py-3 rounded-lg hover:bg-orange-700 hover:cursor-pointer transition-all duration-300"
           >
             Login
           </button>
 
-            {/* Google Button */}
+          {/* Google Button */}
           <button
-            type="submit"
-            className="w-full bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 rounded-lg transition-all duration-300 flex justify-center items-center gap-2 hover:cursor-pointer hover:bg-gray-200"
+            type="button"
+            className="w-full mt-3 bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 rounded-lg transition-all duration-300 flex justify-center items-center gap-2 hover:cursor-pointer hover:bg-gray-200"
+            onClick={handleGoogleAuthLogin}
           >
             <FcGoogle size={25} /> <span>Signup with Google</span>
           </button>
@@ -142,6 +183,6 @@ const Login = () => {
       </div>
     </div>
   );
-}
+};
 
-export default Login
+export default Login;
